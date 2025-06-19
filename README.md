@@ -1,4 +1,4 @@
-# 🎨 Spam Fighter Frontend
+# 🎨 LumaOne Frontend
 
 **Next.js 14 + Mantine UI** - Modern React frontend for the LumaOne email intelligence platform
 
