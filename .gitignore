@@ -10,6 +10,14 @@
 !.yarn/releases
 !.yarn/versions
 
+# bun (preferred package manager)
+bun.lockb
+
+# alternative package managers
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # testing
 /coverage
 
@@ -39,3 +47,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Temporary directories
+tmp/
+temp/
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# Logs
+logs/
+*.log
