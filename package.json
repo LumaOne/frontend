@@ -2,11 +2,15 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "pages:deploy": "wrangler pages deploy",
+    "pages:dev": "npx @cloudflare/next-on-pages --dev"
   },
   "dependencies": {
     "@mantine/carousel": "^8.1.1",

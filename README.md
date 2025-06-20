@@ -263,6 +263,49 @@ NEXT_PUBLIC_APP_API_URL=https://your-app-api.com
 - **Performance Monitoring**: Vercel Web Analytics
 - **Error Tracking**: Sentry integration (optional)
 
+## Deployment to Cloudflare Pages
+
+### Option 1: Using Wrangler CLI (Recommended)
+
+1. Build the project for Cloudflare Pages:
+```bash
+npm run pages:build
+```
+
+2. Deploy to Cloudflare Pages:
+```bash
+npm run pages:deploy
+```
+
+### Option 2: Cloudflare Pages Dashboard
+
+1. Connect your GitHub repository to Cloudflare Pages
+2. Set the build command to: `npm run pages:build`
+3. Set the build output directory to: `.vercel/output/static`
+4. Deploy
+
+### Build Commands
+
+- `npm run build` - Standard Next.js build
+- `npm run pages:build` - Build for Cloudflare Pages
+- `npm run pages:deploy` - Deploy to Cloudflare Pages
+- `npm run pages:dev` - Local development with Cloudflare Pages
+
+## Configuration
+
+The project is configured with:
+- Next.js 15 with static export
+- Mantine UI components for dashboard
+- React Icons for landing page
+- Optimized for Cloudflare Pages deployment
+
+## Project Structure
+
+- `/app/page.js` - Landing page
+- `/app/dashboard/` - Dashboard pages
+- `/app/globals.css` - Global styles
+- `wrangler.toml` - Cloudflare Pages configuration
+
 ## Contributing
 
 ### Component Guidelines
