@@ -1,12 +1,5 @@
 name = "lumaone"
 compatibility_date = "2024-01-01"
 
-[build]
-command = "npm run pages:build"
-
 [site]
-bucket = ".vercel/output/static"
-
-[[routes]]
-pattern = "/*"
-script = ".vercel/output/static/_worker.js"
+bucket = "./out"

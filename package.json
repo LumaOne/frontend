@@ -7,10 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "pages:build": "npx @cloudflare/next-on-pages",
-    "pages:deploy": "wrangler pages deploy",
-    "pages:dev": "npx @cloudflare/next-on-pages --dev"
+    "lint": "next lint"
   },
   "dependencies": {
     "@mantine/carousel": "^8.1.1",
@@ -40,7 +37,6 @@
     "recharts": "2"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.12",
     "@eslint/eslintrc": "^3",
     "autoprefixer": "^10.4.21",
     "eslint": "^9",

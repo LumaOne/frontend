@@ -265,39 +265,44 @@ NEXT_PUBLIC_APP_API_URL=https://your-app-api.com
 
 ## Deployment to Cloudflare Pages
 
-### Option 1: Using Wrangler CLI (Recommended)
-
-1. Build the project for Cloudflare Pages:
-```bash
-npm run pages:build
-```
-
-2. Deploy to Cloudflare Pages:
-```bash
-npm run pages:deploy
-```
-
-### Option 2: Cloudflare Pages Dashboard
+### Option 1: Cloudflare Pages Dashboard (Recommended)
 
 1. Connect your GitHub repository to Cloudflare Pages
-2. Set the build command to: `npm run pages:build`
-3. Set the build output directory to: `.vercel/output/static`
+2. Set the build command to: `bun run build`
+3. Set the build output directory to: `out`
 4. Deploy
+
+### Option 2: Using Wrangler CLI
+
+1. Install Wrangler globally:
+```bash
+npm install -g wrangler
+```
+
+2. Build the project:
+```bash
+bun run build
+```
+
+3. Deploy to Cloudflare Pages:
+```bash
+wrangler pages deploy out
+```
 
 ### Build Commands
 
-- `npm run build` - Standard Next.js build
-- `npm run pages:build` - Build for Cloudflare Pages
-- `npm run pages:deploy` - Deploy to Cloudflare Pages
-- `npm run pages:dev` - Local development with Cloudflare Pages
+- `bun run build` - Build for production (creates static export in `out/` directory)
+- `bun run dev` - Start development server
+- `bun run start` - Start production server (for testing locally)
+- `bun run lint` - Run ESLint
 
 ## Configuration
 
 The project is configured with:
-- Next.js 15 with static export
+- Next.js 15 with static export (`output: 'export'`)
 - Mantine UI components for dashboard
 - React Icons for landing page
-- Optimized for Cloudflare Pages deployment
+- Optimized for Cloudflare Pages static hosting
 
 ## Project Structure
 
@@ -305,6 +310,13 @@ The project is configured with:
 - `/app/dashboard/` - Dashboard pages
 - `/app/globals.css` - Global styles
 - `wrangler.toml` - Cloudflare Pages configuration
+- `out/` - Static build output (created after `bun run build`)
+
+## Notes
+
+- The application uses static export, so server-side features like API routes are not available
+- All pages are pre-rendered at build time for optimal performance
+- Images are unoptimized for compatibility with static hosting
 
 ## Contributing
 
