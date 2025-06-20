@@ -1,0 +1,12 @@
+name = "my-next-app"
+compatibility_date = "2025-06-20"
+
+[build]
+command = "npx next-on-pages build"
+
+[site]
+bucket = ".vercel/output/static"
+
+[[routes]]
+pattern = "/*"
+script = ".vercel/output/static/_worker.js"
