@@ -54,7 +54,7 @@ export default function LandingPage() {
             fontFamily: '"JetBrains Mono", monospace'
           }}>
             <FaTerminal style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-            LumaOne.ai
+            LumaOneAI
           </div>
           <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
             <a href="#api" style={{ 
@@ -224,7 +224,7 @@ export default function LandingPage() {
                 {'> deploy_now()'}
               </button>
               <a 
-                href="/dashboard"
+                href="/login"
                 style={{ 
                   padding: '16px 32px', 
                   background: 'transparent', 
@@ -246,7 +246,7 @@ export default function LandingPage() {
                 onBlur={(e) => handleButtonMouseOut(e, 'transparent', '#3b82f6')}
               >
                 <FaChartLine style={{ marginRight: '8px' }} />
-                {'> view_dashboard()'}
+                {'> sign_in()'}
               </a>
               <button 
                 type="button" 
@@ -561,7 +561,7 @@ export default function LandingPage() {
                     fontFamily: '"JetBrains Mono", monospace'
                   }}
                 >
-                  {'> curl -X POST api.lumaone.ai'}
+                  {'> curl -X POST api.lumaone.cloud'}
                 </button>
               </div>
             </div>
@@ -705,7 +705,7 @@ export default function LandingPage() {
                 fontFamily: '"JetBrains Mono", monospace'
               }}>
                 <FaTerminal style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                LumaOne.ai
+                LumaOneAI
               </div>
               <p style={{ 
                 color: '#64748b', 
@@ -836,7 +836,7 @@ export default function LandingPage() {
               fontSize: '14px',
               fontFamily: '"JetBrains Mono", monospace'
             }}>
-              {'// © 2024 LumaOne.ai - All systems operational'}
+              {'// © 2024 LumaOneAI - All systems operational'}
             </p>
             <div style={{ display: 'flex', gap: '24px' }}>
               <a href="#terms" style={{ 

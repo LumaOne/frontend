@@ -1,8 +1,11 @@
 // Import styles of packages that you've installed.
 // All packages except `@mantine/hooks` require styles imports
 import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css';
 
 import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from '@mantine/core';
+import { Notifications } from '@mantine/notifications';
+import { AuthProvider } from '../contexts/AuthContext';
 
 export const metadata = {
   title: 'LumaOne',
@@ -38,7 +41,12 @@ export default function RootLayout({
             ],
           },
           primaryColor: 'green',
-        }}>{children}</MantineProvider>
+        }}>
+          <Notifications />
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </MantineProvider>
       </body>
     </html>
   );

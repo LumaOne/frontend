@@ -1,61 +1,221 @@
 'use client';
 
-import { Card, Text, Group, Badge, Table, ActionIcon, Tooltip, Button, TextInput, Modal, Code, CopyButton } from '@mantine/core';
+import { useState, useEffect } from 'react';
+import { Card, Text, Group, Badge, Table, ActionIcon, Tooltip, Button, TextInput, Modal, Code, Loader } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { FaKey, FaPlus, FaEye, FaTrash, FaCopy, FaEdit, FaCalendarAlt } from 'react-icons/fa';
-import { useState } from 'react';
+import { FiRefreshCcw } from "react-icons/fi";
+import { getApiKeys, createApiKey, deleteApiKey, updateApiKeyStatus } from '../../../lib/database';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export default function ApiKeysPage() {
+  const { user } = useAuth();
   const [opened, setOpened] = useState(false);
   const [keyName, setKeyName] = useState('');
-  
-  const apiKeys = [
-    {
-      id: 1,
-      name: 'Production API Key',
-      key: 'luma_live_sk_1234567890abcdef',
-      masked: 'luma_live_sk_••••••••••••cdef',
-      created: '2024-01-10',
-      lastUsed: '2 hours ago',
-      requests: '47,382',
-      status: 'active'
-    },
-    {
-      id: 2,
-      name: 'Development Key',
-      key: 'luma_test_sk_abcdef1234567890',
-      masked: 'luma_test_sk_••••••••••••7890',
-      created: '2024-01-08',
-      lastUsed: '5 minutes ago',
-      requests: '1,249',
-      status: 'active'
-    },
-    {
-      id: 3,
-      name: 'Legacy Integration',
-      key: 'luma_live_sk_fedcba0987654321',
-      masked: 'luma_live_sk_••••••••••••4321',
-      created: '2023-12-15',
-      lastUsed: '3 days ago',
-      requests: '892,441',
-      status: 'inactive'
-    },
-  ];
+  const [apiKeys, setApiKeys] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newKeyData, setNewKeyData] = useState(null);
+  const [showNewKeyModal, setShowNewKeyModal] = useState(false);
+
+  // Load API keys
+  useEffect(() => {
+    const loadApiKeys = async () => {
+      if (!user) return;
+      
+      try {
+        setLoading(true);
+        const { data, error } = await getApiKeys();
+        if (error) {
+          console.error('Error loading API keys:', error);
+          notifications.show({
+            title: 'Error',
+            message: 'Failed to load API keys',
+            color: 'red',
+          });
+        } else {
+          setApiKeys(data || []);
+        }
+      } catch (error) {
+        console.error('Error loading API keys:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadApiKeys();
+  }, [user]);
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return '#22c55e';
-      case 'inactive': return '#64748b';
-      case 'revoked': return '#ef4444';
+      case 'ACTIVE': return '#22c55e';
+      case 'INACTIVE': return '#64748b';
+      case 'REVOKED': return '#ef4444';
       default: return '#64748b';
     }
   };
 
-  const generateNewKey = () => {
-    // Simulate key generation
-    console.log('Generating new API key:', keyName);
-    setOpened(false);
-    setKeyName('');
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'ACTIVE': return 'active';
+      case 'INACTIVE': return 'inactive';
+      case 'REVOKED': return 'revoked';
+      default: return 'unknown';
+    }
   };
+
+  const generateNewKey = async () => {
+    if (!keyName.trim()) return;
+    
+    try {
+      setCreating(true);
+      const { data, error } = await createApiKey(keyName.trim());
+      
+      if (error) {
+        console.error('Error creating API key:', error);
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to create API key',
+          color: 'red',
+        });
+      } else {
+        // Store the new key data to show in modal
+        setNewKeyData(data);
+        setShowNewKeyModal(true);
+        
+        // Refresh the API keys list
+        const { data: updatedKeys } = await getApiKeys();
+        setApiKeys(updatedKeys || []);
+        
+        notifications.show({
+          title: 'Success',
+          message: 'API key created successfully',
+          color: 'green',
+        });
+      }
+    } catch (error) {
+      console.error('Error creating API key:', error);
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to create API key',
+        color: 'red',
+      });
+    } finally {
+      setCreating(false);
+      setOpened(false);
+      setKeyName('');
+    }
+  };
+
+  const handleDeleteKey = async (keyId) => {
+    if (!confirm('Are you sure you want to delete this API key? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await deleteApiKey(keyId);
+      
+      if (error) {
+        console.error('Error deleting API key:', error);
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to delete API key',
+          color: 'red',
+        });
+      } else {
+        // Remove from local state
+        setApiKeys(prev => prev.filter(key => key.id !== keyId));
+        notifications.show({
+          title: 'Success',
+          message: 'API key deleted successfully',
+          color: 'green',
+        });
+      }
+    } catch (error) {
+      console.error('Error deleting API key:', error);
+    }
+  };
+
+  const handleToggleStatus = async (keyId, currentStatus) => {
+    const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    
+    try {
+      const { error } = await updateApiKeyStatus(keyId, newStatus);
+      
+      if (error) {
+        console.error('Error updating API key status:', error);
+        notifications.show({
+          title: 'Error',
+          message: 'Failed to update API key status',
+          color: 'red',
+        });
+      } else {
+        // Update local state
+        setApiKeys(prev => prev.map(key => 
+          key.id === keyId ? { ...key, status: newStatus } : key
+        ));
+        notifications.show({
+          title: 'Success',
+          message: `API key ${newStatus.toLowerCase()} successfully`,
+          color: 'green',
+        });
+      }
+    } catch (error) {
+      console.error('Error updating API key status:', error);
+    }
+  };
+
+  const refreshApiKeys = async () => {
+    setLoading(true);
+    const { data } = await getApiKeys();
+    setApiKeys(data || []);
+    setLoading(false);
+  };
+
+  const copyToClipboard = async (text) => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const result = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        return result;
+      }
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      return false;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return 'Never';
+    
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+  };
+
+  const activeKeys = apiKeys.filter(key => key.status === 'ACTIVE');
+  const totalRequests = apiKeys.reduce((sum, key) => sum + (key.usage_count || 0), 0);
 
   return (
     <div>
@@ -80,19 +240,31 @@ export default function ApiKeysPage() {
           </Text>
         </div>
         
-        <Button 
-          size="sm"
-          onClick={() => setOpened(true)}
-          style={{ 
-            backgroundColor: 'rgba(34, 197, 94, 0.1)',
-            color: '#22c55e',
-            border: '1px solid rgba(34, 197, 94, 0.2)',
-            fontFamily: '"JetBrains Mono", monospace'
-          }}
-        >
-          <FaPlus size={12} style={{ marginRight: '8px' }} />
-          {`> generate_key()`}
-        </Button>
+        <Group spacing="xs">
+          <ActionIcon
+            onClick={refreshApiKeys}
+            style={{
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              border: '1px solid rgba(34, 197, 94, 0.2)',
+              borderRadius: '4px'
+            }}
+          >
+            <FiRefreshCcw size={12} color="#22c55e" />
+          </ActionIcon>
+          <Button 
+            size="sm"
+            onClick={() => setOpened(true)}
+            style={{ 
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              color: '#22c55e',
+              border: '1px solid rgba(34, 197, 94, 0.2)',
+              fontFamily: '"JetBrains Mono", monospace'
+            }}
+          >
+            <FaPlus size={12} style={{ marginRight: '8px' }} />
+            {`> generate_key()`}
+          </Button>
+        </Group>
       </Group>
 
       {/* API Keys Overview */}
@@ -132,7 +304,7 @@ export default function ApiKeysPage() {
             color="#22c55e"
             style={{ fontFamily: '"JetBrains Mono", monospace' }}
           >
-            {apiKeys.filter(key => key.status === 'active').length}
+            {loading ? '---' : activeKeys.length}
           </Text>
           <Text 
             size="xs" 
@@ -178,14 +350,14 @@ export default function ApiKeysPage() {
             color="#3b82f6"
             style={{ fontFamily: '"JetBrains Mono", monospace' }}
           >
-            941K
+            {loading ? '---' : totalRequests.toLocaleString()}
           </Text>
           <Text 
             size="xs" 
             color="#94a3b8"
             style={{ fontFamily: '"JetBrains Mono", monospace' }}
           >
-            this month | +12% from last month
+            total API calls made
           </Text>
         </Card>
       </div>
@@ -206,236 +378,192 @@ export default function ApiKeysPage() {
             color="#e2e8f0"
             style={{ fontFamily: '"JetBrains Mono", monospace' }}
           >
-            api_keys.list()
+            active_keys.list()
           </Text>
-          <Text 
-            size="xs" 
-            color="#64748b"
-            style={{ fontFamily: '"JetBrains Mono", monospace' }}
+          <Badge 
+            size="sm"
+            style={{ 
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              color: '#22c55e',
+              border: '1px solid rgba(34, 197, 94, 0.2)'
+            }}
           >
-            {apiKeys.length} keys configured
-          </Text>
+            {apiKeys.length} KEYS
+          </Badge>
         </Group>
-
-        <Table 
-          style={{ 
-            backgroundColor: 'transparent',
-            fontFamily: '"JetBrains Mono", monospace'
-          }}
-        >
-          <thead>
-            <tr style={{ borderBottom: '1px solid rgba(34, 197, 94, 0.2)' }}>
-              <th style={{ color: '#64748b', fontSize: '12px', padding: '12px 8px' }}>NAME</th>
-              <th style={{ color: '#64748b', fontSize: '12px', padding: '12px 8px' }}>API KEY</th>
-              <th style={{ color: '#64748b', fontSize: '12px', padding: '12px 8px' }}>USAGE</th>
-              <th style={{ color: '#64748b', fontSize: '12px', padding: '12px 8px' }}>LAST USED</th>
-              <th style={{ color: '#64748b', fontSize: '12px', padding: '12px 8px' }}>STATUS</th>
-              <th style={{ color: '#64748b', fontSize: '12px', padding: '12px 8px' }}>ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {apiKeys.map((apiKey) => (
-              <tr key={apiKey.id} style={{ borderBottom: '1px solid rgba(34, 197, 94, 0.1)' }}>
-                <td style={{ padding: '12px 8px' }}>
-                  <Text size="sm" color="#e2e8f0" weight={600} style={{ fontFamily: '"JetBrains Mono", monospace' }}>
-                    {apiKey.name}
-                  </Text>
-                  <Text size="xs" color="#64748b" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
-                    Created: {apiKey.created}
-                  </Text>
-                </td>
-                <td style={{ padding: '12px 8px' }}>
-                  <Group spacing="xs">
-                    <Code 
-                      style={{ 
-                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                        color: '#22c55e',
-                        border: '1px solid rgba(34, 197, 94, 0.2)',
-                        fontFamily: '"JetBrains Mono", monospace',
-                        fontSize: '12px'
-                      }}
-                    >
-                      {apiKey.masked}
-                    </Code>
-                    <CopyButton value={apiKey.key}>
-                      {({ copied, copy }) => (
-                        <Tooltip label={copied ? 'Copied' : 'Copy key'}>
-                          <ActionIcon 
-                            size="sm"
-                            onClick={copy}
-                            style={{ 
-                              backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                              color: '#22c55e',
-                              border: '1px solid rgba(34, 197, 94, 0.2)'
-                            }}
-                          >
-                            <FaCopy size={10} />
-                          </ActionIcon>
-                        </Tooltip>
-                      )}
-                    </CopyButton>
-                  </Group>
-                </td>
-                <td style={{ padding: '12px 8px' }}>
-                  <Text size="sm" color="#3b82f6" weight={600} style={{ fontFamily: '"JetBrains Mono", monospace' }}>
-                    {apiKey.requests}
-                  </Text>
-                  <Text size="xs" color="#64748b" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
-                    requests
-                  </Text>
-                </td>
-                <td style={{ padding: '12px 8px' }}>
-                  <Text size="sm" color="#94a3b8" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
-                    {apiKey.lastUsed}
-                  </Text>
-                </td>
-                <td style={{ padding: '12px 8px' }}>
-                  <Badge 
-                    size="sm"
-                    style={{ 
-                      backgroundColor: `${getStatusColor(apiKey.status)}20`,
-                      color: getStatusColor(apiKey.status),
-                      border: `1px solid ${getStatusColor(apiKey.status)}40`
-                    }}
-                  >
-                    {apiKey.status.toUpperCase()}
-                  </Badge>
-                </td>
-                <td style={{ padding: '12px 8px' }}>
-                  <Group spacing="xs">
-                    <Tooltip label="View Details">
-                      <ActionIcon 
-                        size="sm"
-                        style={{ 
-                          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                          color: '#3b82f6',
-                          border: '1px solid rgba(59, 130, 246, 0.2)'
-                        }}
-                      >
-                        <FaEye size={12} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Edit Key">
-                      <ActionIcon 
-                        size="sm"
-                        style={{ 
-                          backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                          color: '#f59e0b',
-                          border: '1px solid rgba(245, 158, 11, 0.2)'
-                        }}
-                      >
-                        <FaEdit size={12} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Delete Key">
-                      <ActionIcon 
-                        size="sm"
-                        style={{ 
-                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                          color: '#ef4444',
-                          border: '1px solid rgba(239, 68, 68, 0.2)'
-                        }}
-                      >
-                        <FaTrash size={12} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </Card>
-
-      {/* API Documentation */}
-      <Card 
-        p="lg" 
-        mt="xl"
-        style={{ 
-          backgroundColor: '#1a1a1a',
-          border: '1px solid rgba(59, 130, 246, 0.2)',
-          borderRadius: '12px'
-        }}
-      >
-        <Text 
-          size="lg" 
-          weight={600} 
-          color="#e2e8f0"
-          style={{ fontFamily: '"JetBrains Mono", monospace' }}
-          mb="md"
-        >
-          quick_start.example()
-        </Text>
         
-        <Text 
-          size="sm" 
-          color="#64748b"
-          style={{ fontFamily: '"JetBrains Mono", monospace' }}
-          mb="md"
-        >
-          {`// Example API usage with your keys`}
-        </Text>
-
-        <Code 
-          block
-          style={{ 
-            backgroundColor: '#0a0a0a',
-            color: '#e2e8f0',
-            border: '1px solid rgba(34, 197, 94, 0.2)',
-            fontFamily: '"JetBrains Mono", monospace',
-            fontSize: '13px',
-            padding: '16px'
-          }}
-        >
-{`curl -X POST https://api.lumaone.ai/v1/analyze \\
-  -H "Authorization: Bearer YOUR_API_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "email": {
-      "subject": "Urgent: Verify Your Account",
-      "body": "Click here to verify...",
-      "sender": "security@bank.com"
-    }
-  }'
-
-// Response
-{
-  "threat_detected": true,
-  "confidence": 98.7,
-  "threat_type": "phishing",
-  "risk_score": 9.2,
-  "action": "block"
-}`}
-        </Code>
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+            <Loader color="#22c55e" />
+          </div>
+        ) : apiKeys.length > 0 ? (
+          <Table
+            style={{ 
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: '12px'
+            }}
+          >
+            <thead>
+              <tr style={{ borderBottom: '1px solid rgba(34, 197, 94, 0.2)' }}>
+                <th style={{ color: '#64748b', fontWeight: '600' }}>Name</th>
+                <th style={{ color: '#64748b', fontWeight: '600' }}>Key</th>
+                <th style={{ color: '#64748b', fontWeight: '600' }}>Status</th>
+                <th style={{ color: '#64748b', fontWeight: '600' }}>Usage</th>
+                <th style={{ color: '#64748b', fontWeight: '600' }}>Last Used</th>
+                <th style={{ color: '#64748b', fontWeight: '600' }}>Created</th>
+                <th style={{ color: '#64748b', fontWeight: '600' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {apiKeys.map((key) => (
+                <tr key={key.id} style={{ borderBottom: '1px solid rgba(100, 116, 139, 0.1)' }}>
+                  <td>
+                    <Text size="sm" color="#e2e8f0" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                      {key.name}
+                    </Text>
+                  </td>
+                  <td>
+                    <Group spacing="xs">
+                      <Code 
+                        style={{ 
+                          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                          color: '#22c55e',
+                          border: '1px solid rgba(34, 197, 94, 0.2)',
+                          fontFamily: '"JetBrains Mono", monospace',
+                          fontSize: '11px'
+                        }}
+                      >
+                        {key.key_prefix}••••••••••••••••
+                      </Code>
+                      <Tooltip label="Copy Key">
+                        <ActionIcon 
+                          size="sm" 
+                          style={{ color: '#64748b' }}
+                          onClick={async () => {
+                            const success = await copyToClipboard(key.key_hash);
+                            if (success) {
+                              notifications.show({
+                                title: 'Copied!',
+                                message: 'API key copied to clipboard',
+                                color: 'green',
+                              });
+                            } else {
+                              notifications.show({
+                                title: 'Copy failed',
+                                message: 'Could not copy to clipboard',
+                                color: 'red',
+                              });
+                            }
+                          }}
+                        >
+                          <FaCopy size={10} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </td>
+                  <td>
+                    <Badge 
+                      size="xs"
+                      style={{ 
+                        backgroundColor: `${getStatusColor(key.status)}20`,
+                        color: getStatusColor(key.status),
+                        border: `1px solid ${getStatusColor(key.status)}40`,
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => handleToggleStatus(key.id, key.status)}
+                    >
+                      {getStatusText(key.status)}
+                    </Badge>
+                  </td>
+                  <td>
+                    <Text size="xs" color="#94a3b8" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                      {(key.usage_count || 0).toLocaleString()} calls
+                    </Text>
+                  </td>
+                  <td>
+                    <Text size="xs" color="#64748b" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                      {formatTimeAgo(key.last_used_at)}
+                    </Text>
+                  </td>
+                  <td>
+                    <Text size="xs" color="#64748b" style={{ fontFamily: '"JetBrains Mono", monospace' }}>
+                      {formatDate(key.created_at)}
+                    </Text>
+                  </td>
+                  <td>
+                    <Group spacing={4}>
+                      <Tooltip label="View Details">
+                        <ActionIcon size="sm" style={{ color: '#3b82f6' }}>
+                          <FaEye size={10} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Delete Key">
+                        <ActionIcon 
+                          size="sm" 
+                          style={{ color: '#ef4444' }}
+                          onClick={() => handleDeleteKey(key.id)}
+                        >
+                          <FaTrash size={10} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        ) : (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '2rem',
+            color: '#64748b',
+            fontFamily: '"JetBrains Mono", monospace'
+          }}>
+            <Text size="sm">
+              {`// No API keys found`}
+            </Text>
+            <Text size="xs" mt="xs">
+              Create your first API key to get started
+            </Text>
+          </div>
+        )}
       </Card>
 
-      {/* Generate New Key Modal */}
+      {/* Create API Key Modal */}
       <Modal
         opened={opened}
         onClose={() => setOpened(false)}
         title={
           <Text 
-            weight={600}
             style={{ 
               fontFamily: '"JetBrains Mono", monospace',
-              color: '#e2e8f0'
+              color: '#22c55e',
+              fontWeight: '600'
             }}
           >
             generate_new_key()
           </Text>
         }
         styles={{
-          modal: { backgroundColor: '#1a1a1a', border: '1px solid rgba(34, 197, 94, 0.2)' },
-          header: { backgroundColor: '#1a1a1a', borderBottom: '1px solid rgba(34, 197, 94, 0.2)' },
-          title: { color: '#e2e8f0' }
+          modal: {
+            backgroundColor: '#1a1a1a',
+            border: '1px solid rgba(34, 197, 94, 0.2)',
+          },
+          header: {
+            backgroundColor: '#1a1a1a',
+            borderBottom: '1px solid rgba(34, 197, 94, 0.2)',
+          },
+          title: {
+            color: '#22c55e',
+          },
         }}
       >
-        <div style={{ padding: '16px 0' }}>
+        <div>
           <Text 
             size="sm" 
-            color="#64748b"
-            style={{ fontFamily: '"JetBrains Mono", monospace' }}
+            color="#94a3b8" 
             mb="md"
+            style={{ fontFamily: '"JetBrains Mono", monospace' }}
           >
             {`// Create a new API key for your application`}
           </Text>
@@ -444,48 +572,156 @@ export default function ApiKeysPage() {
             label="Key Name"
             placeholder="e.g., Production API Key"
             value={keyName}
-            onChange={(e) => setKeyName(e.currentTarget.value)}
+            onChange={(e) => setKeyName(e.target.value)}
             mb="md"
             styles={{
-              label: { 
+              label: {
                 color: '#e2e8f0',
-                fontFamily: '"JetBrains Mono", monospace'
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: '14px',
               },
-              input: { 
-                backgroundColor: '#0a0a0a',
-                borderColor: 'rgba(34, 197, 94, 0.2)',
+              input: {
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                border: '1px solid rgba(34, 197, 94, 0.2)',
                 color: '#e2e8f0',
-                fontFamily: '"JetBrains Mono", monospace'
-              }
+                fontFamily: '"JetBrains Mono", monospace',
+              },
             }}
           />
           
           <Group position="right" mt="md">
             <Button 
-              variant="outline"
+              variant="outline" 
               onClick={() => setOpened(false)}
-              style={{ 
-                borderColor: 'rgba(100, 116, 139, 0.2)',
+              style={{
                 color: '#64748b',
-                fontFamily: '"JetBrains Mono", monospace'
+                borderColor: '#64748b',
+                fontFamily: '"JetBrains Mono", monospace',
               }}
             >
               Cancel
             </Button>
             <Button 
               onClick={generateNewKey}
+              loading={creating}
               disabled={!keyName.trim()}
-              style={{ 
-                backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                color: '#22c55e',
-                border: '1px solid rgba(34, 197, 94, 0.2)',
-                fontFamily: '"JetBrains Mono", monospace'
+              style={{
+                backgroundColor: '#22c55e',
+                color: '#0a0a0a',
+                fontFamily: '"JetBrains Mono", monospace',
               }}
             >
-              Generate Key
+              {creating ? 'Generating...' : 'Generate Key'}
             </Button>
           </Group>
         </div>
+      </Modal>
+
+      {/* New Key Display Modal */}
+      <Modal
+        opened={showNewKeyModal}
+        onClose={() => setShowNewKeyModal(false)}
+        title={
+          <Text 
+            style={{ 
+              fontFamily: '"JetBrains Mono", monospace',
+              color: '#22c55e',
+              fontWeight: '600'
+            }}
+          >
+            key_generated_successfully()
+          </Text>
+        }
+        styles={{
+          modal: {
+            backgroundColor: '#1a1a1a',
+            border: '1px solid rgba(34, 197, 94, 0.2)',
+          },
+          header: {
+            backgroundColor: '#1a1a1a',
+            borderBottom: '1px solid rgba(34, 197, 94, 0.2)',
+          },
+        }}
+      >
+        {newKeyData && (
+          <div>
+            <Text 
+              size="sm" 
+              color="#ef4444" 
+              mb="md"
+              style={{ fontFamily: '"JetBrains Mono", monospace' }}
+            >
+              {`// WARNING: Save this key now. You won't be able to see it again!`}
+            </Text>
+            
+            <Text 
+              size="sm" 
+              color="#e2e8f0" 
+              mb="xs"
+              style={{ fontFamily: '"JetBrains Mono", monospace' }}
+            >
+              Your new API key:
+            </Text>
+            
+            <Group spacing="xs" mb="md">
+              <Code 
+                style={{ 
+                  backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                  color: '#22c55e',
+                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: '12px',
+                  padding: '8px 12px',
+                  flex: 1
+                }}
+              >
+                {newKeyData.full_key}
+              </Code>
+                             <Button
+                 size="xs"
+                 onClick={async () => {
+                   const success = await copyToClipboard(newKeyData.full_key);
+                   if (success) {
+                     notifications.show({
+                       title: 'Copied!',
+                       message: 'API key copied to clipboard',
+                       color: 'green',
+                     });
+                   } else {
+                     notifications.show({
+                       title: 'Copy failed',
+                       message: 'Could not copy to clipboard',
+                       color: 'red',
+                     });
+                   }
+                 }}
+                 style={{
+                   backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                   color: '#22c55e',
+                   border: '1px solid rgba(34, 197, 94, 0.2)',
+                 }}
+               >
+                 Copy
+               </Button>
+            </Group>
+            
+            <Group position="right">
+              <Button 
+                onClick={() => {
+                  setShowNewKeyModal(false);
+                  setNewKeyData(null);
+                }}
+                style={{
+                  backgroundColor: '#22c55e',
+                  color: '#0a0a0a',
+                  fontFamily: '"JetBrains Mono", monospace',
+                }}
+              >
+                I've saved the key
+              </Button>
+            </Group>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -75,7 +75,7 @@ export default function SettingsPage() {
           <div style={{ marginBottom: '16px' }}>
             <TextInput
               label="Email Address"
-              value="dev@lumaone.ai"
+              value="dev@lumaone.cloud"
               disabled
               styles={{
                 label: { 
